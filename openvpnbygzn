@@ -1,0 +1,143 @@
+#!/bin/bash
+
+# https://github.com/phanudet-ton/SCRIPT
+# https://m.me/PhanudetChantra
+
+if [[ $EUID -ne 0 ]]; then
+  echo "เกิดข้อผิดพลาด: กรุณาเข้าสู่ระบบด้วย root : sudo -i ก่อนลงสคริปต์" 2>&1
+  exit 1
+fi
+
+MYIP=$(wget -qO- http://whatismyip.akamai.com/)
+
+# set time GMT +7
+ln -fs /usr/share/zoneinfo/Asia/Bangkok /etc/localtime
+
+echo "อัพเดทระบบ"
+apt update
+apt -y install linuxlogo
+apt -y install neofetch
+echo "clear" >> .bash_profile
+echo "neofetch" >> .bash_profile
+
+clear
+
+# Install OpenVPN Access Server
+apt -y install ca-certificates wget net-tools gnupg
+wget -qO - https://as-repository.openvpn.net/as-repo-public.gpg | apt-key add -
+echo "deb http://as-repository.openvpn.net/as/debian buster main" > /etc/apt/sources.list.d/openvpn-as-repo.list
+apt update
+apt -y install openvpn-as
+
+clear
+
+apt -y install squid
+
+cp /etc/squid/squid.conf /etc/squid/squid.conf.orig
+echo "acl localnet src 0.0.0.1-0.255.255.255
+acl localnet src 10.0.0.0/8
+acl localnet src 100.64.0.0/10
+acl localnet src 169.254.0.0/16
+acl localnet src 172.16.0.0/12
+acl localnet src 192.168.0.0/16
+acl localnet src fc00::/7
+acl localnet src fe80::/10
+
+acl SSL_ports port 443
+acl Safe_ports port 80          # http
+acl Safe_ports port 21          # ftp
+acl Safe_ports port 443         # https
+acl Safe_ports port 70          # gopher
+acl Safe_ports port 210         # wais
+acl Safe_ports port 1025-65535  # unregistered ports
+acl Safe_ports port 280         # http-mgmt
+acl Safe_ports port 488         # gss-http
+acl Safe_ports port 591         # filemaker
+acl Safe_ports port 777         # multiling http
+acl CONNECT method CONNECT
+
+acl SSH dst $MYIP-$MYIP/255.255.255.255
+
+http_access allow SSH
+http_access allow localhost manager
+http_access deny manager
+http_access allow localnet
+http_access allow localhost
+http_access deny all
+
+http_port 8080
+http_port 8000
+http_port 3128
+
+via off
+forwarded_for off
+dns_v4_first on
+refresh_pattern ^ftp:           1440    20%     10080
+refresh_pattern ^gopher:        1440    0%      1440
+refresh_pattern -i (/cgi-bin/|\?) 0     0%      0
+refresh_pattern .               0       20%     4320
+visible_hostname Phanudet-Ton" > /etc/squid/squid.conf
+
+/etc/init.d/squid start
+/etc/init.d/squid restart
+
+cd
+# setting port ssh
+sed -i '/Port 22/a Port 22' /etc/ssh/sshd_config
+sed -i 's/Port 22/Port 22/g' /etc/ssh/sshd_config
+service ssh restart
+
+# install dropbear
+apt-get -y install dropbear
+sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
+sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=143/g' /etc/default/dropbear
+sed -i 's/DROPBEAR_EXTRA_ARGS=/DROPBEAR_EXTRA_ARGS="-p 191 -p 102"/g' /etc/default/dropbear
+echo "/bin/false" >> /etc/shells
+echo "/usr/sbin/nologin" >> /etc/shells
+service ssh restart
+service dropbear restart
+
+# Banner
+wget -O /etc/issue.net "https://www.dropbox.com/s/djp3uagq4seupwe/Banner?dl=0"
+echo "Banner /etc/issue.net" >> /etc/ssh/sshd_config
+sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/issue.net"@g' /etc/default/dropbear
+service ssh restart
+service dropbear restart
+
+# Download Commands
+cd /usr/bin
+wget -O /usr/local/bin/m "https://www.dropbox.com/s/c8qg870ovq49qll/menu?dl=0"
+wget -O /usr/local/bin/01 "https://www.dropbox.com/s/x2uvlytac1q5mjx/user-new?dl=0"
+wget -O /usr/local/bin/02 "https://www.dropbox.com/s/x8hteqb82p5lo60/user?dl=0"
+wget -O /usr/local/bin/03 "https://www.dropbox.com/s/1ale92shpwrii19/online?dl=0"
+wget -O /usr/local/bin/04 "https://www.dropbox.com/s/iku1bk5busbp9ab/delete-user?dl=0"
+wget -O /usr/local/bin/05 "https://www.dropbox.com/s/qp40i8awipc1ky8/restart?dl=0"
+
+chmod +x /usr/local/bin/m
+chmod +x /usr/local/bin/01
+chmod +x /usr/local/bin/02
+chmod +x /usr/local/bin/03
+chmod +x /usr/local/bin/04
+chmod +x /usr/local/bin/05
+
+clear
+linuxlogo
+echo ""
+echo " ========= • ≧ SCRIPT INSTALL AUTO ≦ • ========="
+echo "        ------ • ≧ ติดตั้งสำเร็จ..! ≦ • ------"
+echo ""
+echo " ➢  ป้อนคำสั่ง : passwd openvpn เพื่อตั้งรหัสผ่านเริ่มต้น"
+echo " ➢  จากนั้นเข้าสู่ระบบด้วย User : openvpn เพื่อดำเนินการต่อ"
+echo ""
+echo " ➢  กำหนดค่าที่นี่ Login  : https://$MYIP:943/admin"
+echo " ➢  เลือกวิธี การเชื่อมต่อ : https://$MYIP:943/"
+echo ""
+echo "• Squid Proxy : $MYIP"
+echo "• Proxy Port  : 8080,8000,3128"
+echo "•By GUN_GZN"
+echo ""
+echo "============================"
+echo ""
+echo "     ➢ เมนูนี้สำหรับ สร้างผู้ใช้ SSH : m"
+echo ""
+echo "============================"
